@@ -24,6 +24,7 @@ Configure the values in `config.py`.
 - `MESSAGE` - The message to send to voters over the vote cap.
 - `MESSAGE_INTERVAL_SECONDS` - The interval in seconds to repeat sending the message. Set `MESSAGE_LIMIT_PER_VOTER` to `1` to send the message only once.
 - `MESSAGE_LIMIT_PER_VOTER` - The maximum amount of messages to send to one voter. Set to `-1` to set no maximum.
+- `EXCLUDE_VOTERS` - A list `["abc", "def"]` of voter addresses to exclude from sending messages.
 
 ## Crontab
 

@@ -3,7 +3,7 @@ from datetime import datetime, time
 from typing import Dict, Optional
 
 from config import SYNC_CHECK_BLOCK_THRESHOLD, MESSAGE, WALLET_MNEMONIC, WALLET_SECOND_MNEMONIC, VOTE_CAP, \
-    MESSAGE_INTERVAL_SECONDS, BLOCK_PRODUCER_USERNAME, MESSAGE_LIMIT_PER_VOTER
+    MESSAGE_INTERVAL_SECONDS, BLOCK_PRODUCER_USERNAME, MESSAGE_LIMIT_PER_VOTER, EXCLUDE_VOTERS
 from core_api import get_node_status, Peer, get_peers, Wallet, get_voters, VotingFor
 from data import get_last_activation_timestamp, set_last_activation_timestamp, get_activations, set_activations
 from error import handle_error
@@ -72,6 +72,8 @@ def get_voters_to_message(
     voters_to_message: [Wallet] = []
 
     for voter in voters:
+        if voter.address in EXCLUDE_VOTERS:
+            continue
         if voter.address in activations:
             activation_count = activations[voter.address]
             activations[voter.address] = activation_count
