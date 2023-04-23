@@ -1,0 +1,3 @@
+requests
+solar-client
+solar-crypto
