@@ -5,7 +5,7 @@ Send a message to voters over your vote cap.
 ## Installation
 
 ```
-cd ~ && git clone https://github.com/Kippers37/solar-vote-cap-messenger.git
+cd ~ && git clone https://github.com/dutchpool/solar-vote-cap-messenger.git
 sudo apt install python3-pip
 cd ~/solar-vote-cap-messenger && pip3 install -r requirements.txt
 ```
