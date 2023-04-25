@@ -52,8 +52,10 @@ messenger.py
 Arguments:
 - test, optional: -t | --test  # Run the script in test mode, no messages will be sent.
 - set time, optional: -st <HH:MM> | --settime <HH:MM>  # Change the time of day when the repeated message is sent.
+- set weekday, optional: -swd <0-6> | --setweekday <0-6>  # Change the day of week when the repeated message is sent, '0' (Monday) - '6' (Sunday).
 
 Examples:
 python3 messenger -t
 python3 messenger -st 13:00
+python3 messenger -swd 0
 ```

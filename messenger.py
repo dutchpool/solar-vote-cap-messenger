@@ -1,5 +1,5 @@
 from argparse import ArgumentParser, ArgumentTypeError
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Dict, Optional
 
 from config import SYNC_CHECK_BLOCK_THRESHOLD, MESSAGE, WALLET_MNEMONIC, WALLET_SECOND_MNEMONIC, VOTE_CAP, \
@@ -13,6 +13,14 @@ from utils import from_atomic_formatted, time_delta_formatted
 ALLOW_NEW_ACTIVE_PERCENTAGE = 0.05
 ALLOW_NEW_ACTIVE_SECONDS = 2 * 60 * 60
 TIME_FORMAT = "%H:%M"
+WEEKDAY_FORMAT = "%A"
+
+
+def parse_set_weekday(day_str: str) -> int:
+    try:
+        return int(day_str)
+    except ValueError:
+        raise ArgumentTypeError(f"Invalid weekday format '{day_str}'. Use format '0' (Monday) - '6' (Sunday).")
 
 
 def parse_set_time(time_str: str) -> time:
@@ -39,6 +47,12 @@ parser.add_argument(
     "-st", "--settime",
     type=parse_set_time,
     help="Change the time of the interval in format 'HH:MM'",
+    required=False
+)
+parser.add_argument(
+    "-swd", "--setweekday",
+    type=parse_set_weekday,
+    help="Change the weekday of the interval, '0' (Monday) - '6' (Sunday)",
     required=False
 )
 args = parser.parse_args()
@@ -158,15 +172,32 @@ def verify_node_status():
         handle_error(e, "Failed to verify node status", True)
 
 
+def set_new_activation_weekday(is_test: bool, last_activation: int, new_weekday: int):
+    if last_activation == 0:
+        last_date = datetime.fromtimestamp(now - MESSAGE_INTERVAL_SECONDS)
+    else:
+        last_date = datetime.fromtimestamp(last_activation)
+    diff_weekday = last_date.weekday() - new_weekday
+    new_date = last_date - timedelta(days=diff_weekday)
+    if new_date.timestamp() > now:
+        new_date -= timedelta(seconds=MESSAGE_INTERVAL_SECONDS)
+    elif new_date.timestamp() < now - MESSAGE_INTERVAL_SECONDS:
+        new_date += timedelta(seconds=MESSAGE_INTERVAL_SECONDS)
+    new_timestamp = int(new_date.timestamp())
+    new_weekday_str = new_date.strftime(WEEKDAY_FORMAT)
+    if is_test:
+        print(f"""Test changed activation weekday to {new_weekday_str}""")
+    else:
+        set_last_activation_timestamp(new_timestamp)
+        print(f"""Changed activation weekday to {new_weekday_str}""")
+
+
 def set_new_activation_time(is_test: bool, last_activation: int, new_time: time):
     if last_activation == 0:
-        new_timestamp = int(
-            datetime.combine(datetime.fromtimestamp(now - MESSAGE_INTERVAL_SECONDS), new_time).timestamp()
-        )
+        last_date = datetime.fromtimestamp(now - MESSAGE_INTERVAL_SECONDS)
     else:
-        new_timestamp = int(
-            datetime.combine(datetime.fromtimestamp(last_activation), new_time).timestamp()
-        )
+        last_date = datetime.fromtimestamp(last_activation)
+    new_timestamp = int(datetime.combine(last_date, new_time).timestamp())
     new_time_str = new_time.strftime(TIME_FORMAT)
     if is_test:
         print(f"""Test changed activation time to {new_time_str}""")
@@ -179,16 +210,28 @@ def main():
     is_test = args.test
     is_dev = args.dev
     new_time = args.settime
+    new_weekday = args.setweekday
     last_activation = get_last_activation_timestamp()
+    if new_time is not None and new_weekday is not None:
+        set_new_activation_time(is_test, last_activation, new_time)
+        set_new_activation_weekday(is_test, last_activation, new_weekday)
+        return
     if new_time is not None:
         set_new_activation_time(is_test, last_activation, new_time)
+        return
+    if new_weekday is not None:
+        set_new_activation_weekday(is_test, last_activation, new_weekday)
         return
     verify_node_status()
     is_active, seconds_till_activation = is_messenger_active(last_activation)
     is_new_active = is_messenger_new_active(seconds_till_activation)
-    next_time_str = datetime.fromtimestamp(now + seconds_till_activation).strftime(TIME_FORMAT)
+    next_date = datetime.fromtimestamp(now + seconds_till_activation)
+    next_time_str = next_date.strftime(TIME_FORMAT)
+    next_weekday_str = next_date.strftime(WEEKDAY_FORMAT)
     if not is_active and not is_new_active:
-        print(f"Next activation in {time_delta_formatted(seconds_till_activation)} at {next_time_str}")
+        print(
+            f"Next activation in {time_delta_formatted(seconds_till_activation)} on {next_weekday_str} at {next_time_str}"
+        )
         return
     voters = get_voters_over_cap(BLOCK_PRODUCER_USERNAME)
     voters_to_message = get_voters_to_message(is_test, is_dev, is_active, is_new_active, voters)
@@ -201,7 +244,9 @@ def main():
                 f"No voters over the {from_atomic_formatted(VOTE_CAP, 0)} SXP vote cap for block producer {BLOCK_PRODUCER_USERNAME}"
             )
         else:
-            print(f"Next activation in {time_delta_formatted(seconds_till_activation)} at {next_time_str}")
+            print(
+                f"Next activation in {time_delta_formatted(seconds_till_activation)} on {next_weekday_str} at {next_time_str}"
+            )
         return
     if is_test:
         logging_messages = [
